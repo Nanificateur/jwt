@@ -74,7 +74,7 @@ deploy:
     - gem install dpl
     - dpl --provider=heroku --app=jwt-jv --api-key=a0f0bff8-2bca-4b44-b9d9-0c6c155d42d8
 # Uncomment the following line to use gitlabs container registry. You need to adapt the REGISTRY_URL in case you are not using gitlab.com
-#docker-push:
+#docker-push: ddddd
 #    stage: release
 #    variables:
 #        REGISTRY_URL: registry.gitlab.com
