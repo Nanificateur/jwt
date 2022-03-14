@@ -1,5 +1,9 @@
 image: maven:latest
 
+variables:
+  SONAR_USER_HOME: '${CI_PROJECT_DIR}/.sonar' # Defines the location of the analysis task cache
+  GIT_DEPTH: '0' # Tells git to fetch all the branches of the project, required by the analysis task
+
 cache:
   key: '$CI_COMMIT_REF_NAME'
   paths:
@@ -69,6 +73,19 @@ maven-package:
       - target/*.jar
       - target/classes
     expire_in: 1 day
+
+sonarcloud-check:
+  image: maven:3.6.3-jdk-11
+  cache:
+    key: '${CI_JOB_NAME}'
+    paths:
+      - .sonar/cache
+  script:
+    - $MAVEN_HOME/bin/mvn  sonar:sonar -Dsonar.projectKey=myapp12
+  only:
+    - merge_requests
+    - master
+    - develop
 
 deploy:
   stage: deploy
