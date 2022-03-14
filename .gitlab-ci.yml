@@ -13,18 +13,18 @@ stages:
 before_script:
   - export NG_CLI_ANALYTICS="false"
   - export MAVEN_USER_HOME=`pwd`/.maven
-  - mvn -ntp com.github.eirslett:frontend-maven-plugin:install-node-and-npm@install-node-and-npm -Dmaven.repo.local=$MAVEN_USER_HOME
-  - mvn -ntp com.github.eirslett:frontend-maven-plugin:npm -Dmaven.repo.local=$MAVEN_USER_HOME
+  - ./mvnw -ntp com.github.eirslett:frontend-maven-plugin:install-node-and-npm@install-node-and-npm -Dmaven.repo.local=$MAVEN_USER_HOME
+  - ./mvnw -ntp com.github.eirslett:frontend-maven-plugin:npm -Dmaven.repo.local=$MAVEN_USER_HOME
 
 nohttp:
   stage: check
   script:
-    - mvn -ntp checkstyle:check -Dmaven.repo.local=$MAVEN_USER_HOME
+    - $MAVEN_HOME/bin/mvn -ntp checkstyle:check -Dmaven.repo.local=$MAVEN_USER_HOME
 
 maven-compile:
   stage: build
   script:
-    - mvnw -ntp compile -P-webapp -Dmaven.repo.local=$MAVEN_USER_HOME
+    - ./mvnw -ntp compile -P-webapp -Dmaven.repo.local=$MAVEN_USER_HOME
   artifacts:
     paths:
       - target/classes/
@@ -34,7 +34,7 @@ maven-compile:
 maven-test:
   stage: test
   script:
-    - mvnw -ntp verify -P-webapp -Dmaven.repo.local=$MAVEN_USER_HOME
+    - ./mvnw -ntp verify -P-webapp -Dmaven.repo.local=$MAVEN_USER_HOME
   artifacts:
     reports:
       junit:
@@ -49,7 +49,7 @@ maven-test:
 frontend-test:
   stage: test
   script:
-    - mvnw -ntp com.github.eirslett:frontend-maven-plugin:npm -Dfrontend.npm.arguments='run test' -Dmaven.repo.local=$MAVEN_USER_HOME
+    - ./mvnw -ntp com.github.eirslett:frontend-maven-plugin:npm -Dfrontend.npm.arguments='run test' -Dmaven.repo.local=$MAVEN_USER_HOME
   artifacts:
     reports:
       junit: target/test-results/TESTS-results-jest.xml
@@ -61,7 +61,7 @@ frontend-test:
 maven-package:
   stage: package
   script:
-    - mvnw -ntp verify -Pprod -DskipTests -Dmaven.repo.local=$MAVEN_USER_HOME
+    - ./mvnw -ntp verify -Pprod -DskipTests -Dmaven.repo.local=$MAVEN_USER_HOME
   artifacts:
     paths:
       - target/*.jar
