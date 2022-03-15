@@ -1,105 +1,48 @@
-image: maven:latest
-
-variables:
-  SONAR_USER_HOME: '${CI_PROJECT_DIR}/.sonar' # Defines the location of the analysis task cache
-  GIT_DEPTH: '0' # Tells git to fetch all the branches of the project, required by the analysis task
-
-cache:
-  key: '$CI_COMMIT_REF_NAME'
-  paths:
-    - .maven/
-stages:
-  - check
-  - build
-  - test
-  - analyze
-  - package
-  - release
-  - deploy
-before_script:
-  - export NG_CLI_ANALYTICS="false"
-  - export MAVEN_USER_HOME=`pwd`/.maven
-  - $MAVEN_HOME/bin/mvn -ntp com.github.eirslett:frontend-maven-plugin:install-node-and-npm@install-node-and-npm -Dmaven.repo.local=$MAVEN_USER_HOME
-  - $MAVEN_HOME/bin/mvn -ntp com.github.eirslett:frontend-maven-plugin:npm -Dmaven.repo.local=$MAVEN_USER_HOME
-
-nohttp:
-  stage: check
-  script:
-    - $MAVEN_HOME/bin/mvn -ntp checkstyle:check -Dmaven.repo.local=$MAVEN_USER_HOME
-
-maven-compile:
-  stage: build
-  script:
-    - $MAVEN_HOME/bin/mvn -ntp compile -P-webapp -Dmaven.repo.local=$MAVEN_USER_HOME
-  artifacts:
-    paths:
-      - target/classes/
-      - target/generated-sources/
-    expire_in: 1 day
-
-maven-test:
-  stage: test
-  script:
-    - $MAVEN_HOME/bin/mvn -ntp verify -P-webapp -Dmaven.repo.local=$MAVEN_USER_HOME
-  artifacts:
-    reports:
-      junit:
-        - target/surefire-reports/TEST-*.xml
-        - target/failsafe-reports/TEST-*.xml
-    paths:
-      - target/surefire-reports
-      - target/failsafe-reports
-      - target/site
-    expire_in: 1 day
-
-frontend-test:
-  stage: test
-  script:
-    - $MAVEN_HOME/bin/mvn -ntp com.github.eirslett:frontend-maven-plugin:npm -Dfrontend.npm.arguments='run test' -Dmaven.repo.local=$MAVEN_USER_HOME
-  artifacts:
-    reports:
-      junit: target/test-results/TESTS-results-jest.xml
-    paths:
-      - target/test-results
-      - target/jacoco
-    expire_in: 1 day
-
-maven-package:
-  stage: package
-  script:
-    - $MAVEN_HOME/bin/mvn -ntp verify -Pprod -DskipTests -Dmaven.repo.local=$MAVEN_USER_HOME
-  artifacts:
-    paths:
-      - target/*.jar
-      - target/classes
-    expire_in: 1 day
-
-sonarcloud-check:
-  image: maven:3.6.3-jdk-11
-  cache:
-    key: '${CI_JOB_NAME}'
-    paths:
-      - .sonar/cache
-  script:
-    - $MAVEN_HOME/bin/mvn  sonar:sonar -Dsonar.projectKey=myapp12
-  only:
-    - merge_requests
-    - master
-    - develop
-
-deploy:
-  stage: deploy
-  script:
-    - gem install dpl
-    - dpl --provider=heroku --app=jwt-jv --api-key=a0f0bff8-2bca-4b44-b9d9-0c6c155d42d8
-# Uncomment the following line to use gitlabs container registry. You need to adapt the REGISTRY_URL in case you are not using gitlab.com
-#docker-push: ddd
-#    stage: release
-#    variables:
-#        REGISTRY_URL: registry.gitlab.com
-#        IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA
-#    dependencies: f
-#        - maven-package
-#    script:
-#        - ./mvnw -ntp jib:build -Pprod -Djib.to.image=$IMAGE_TAG -Djib.to.auth.username=gitlab-ci-token  -Djib.to.auth.password=$CI_BUILD_TOKEN -Dmaven.repo.local=$MAVEN_USER_HOME
-
+name: Application CI
+on: [push, pull_request]
+jobs:
+  pipeline:
+    name: myApp pipeline
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[ci skip]') && !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.pull_request.title, '[skip ci]') && !contains(github.event.pull_request.title, '[ci skip]')"
+    timeout-minutes: 40
+    env:
+      NODE_VERSION: 16.14.0
+      SPRING_OUTPUT_ANSI_ENABLED: DETECT
+      SPRING_JPA_SHOW_SQL: false
+      JHI_DISABLE_WEBPACK_LOGS: true
+      NG_CLI_ANALYTICS: false
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 16.14.0
+      - uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 11
+      - name: TU
+        run: mvn test
+      - name: TI
+        run: mvn integration-test
+      - name: front
+        run: npm test
+      - name: Cache Maven packages
+        uses: actions/cache@v1
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build and analyze
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=TP_Archi
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: Deploy to Heroku
+        uses: akhileshns/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: a0f0bff8-2bca-4b44-b9d9-0c6c155d42d8
+          heroku_app_name: jwt-jv
+          heroku_email: johanvertut@pm.me
