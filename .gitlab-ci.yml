@@ -98,7 +98,7 @@ deploy:
 #    variables:
 #        REGISTRY_URL: registry.gitlab.com
 #        IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHA
-#    dependencies:
+#    dependencies: f
 #        - maven-package
 #    script:
 #        - ./mvnw -ntp jib:build -Pprod -Djib.to.image=$IMAGE_TAG -Djib.to.auth.username=gitlab-ci-token  -Djib.to.auth.password=$CI_BUILD_TOKEN -Dmaven.repo.local=$MAVEN_USER_HOME
